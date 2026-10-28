@@ -72,10 +72,12 @@ images:
     service: db
     source: docker.io/library/postgres
     channel: custom
-    tag_regex: '^17-alpine$'
-    sort: created
-    version_regex: '^(?P<major>17)-alpine$'
-    version_template: '0.0.{major}'
+    sort: semver
+    tag_regex: '^17\.\d+-alpine$'
+    version_regex: '^(?P<version>17\.\d+)-alpine$'
+    version_template: '{version}.0'
+    max_tags: 50000
+    max_matching_tags: 50000
     delivery:
       mode: mirror
       require_digest_match: true
@@ -85,7 +87,7 @@ images:
     source: docker.io/getmeili/meilisearch
     channel: stable
     sort: semver
-    tag_regex: '^v1\.5(\.\d+)?$'
+    tag_regex: '^v1\.5\.\d+$'
     max_tags: 50000
     max_matching_tags: 50000
     delivery:
@@ -97,7 +99,7 @@ images:
     source: ghcr.io/zoriya/kyoo_transcoder
     channel: stable
     sort: semver
-    tag_regex: '^5\.2(\.\d+)?$'
+    tag_regex: '^5\.2\.\d+$'
     max_tags: 50000
     max_matching_tags: 50000
     delivery:
@@ -108,10 +110,25 @@ images:
     service: mq
     source: docker.io/library/rabbitmq
     channel: custom
-    tag_regex: '^4\.3-alpine$'
-    sort: created
-    version_regex: '^(?P<minor>4)\.(?P<patch>3)-alpine$'
-    version_template: '0.{minor}.{patch}'
+    sort: semver
+    tag_regex: '^4\.3\.\d+-alpine$'
+    version_regex: '^4\.(?P<version>3\.\d+)-alpine$'
+    version_template: '0.{version}'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-nginx
+    target: service
+    service: nginx
+    source: docker.io/library/nginx
+    channel: stable
+    sort: semver
+    tag_regex: '^1\.31\.\d+-alpine$'
+    version_regex: '^(?P<version>1\.31\.\d+)-alpine$'
+    max_tags: 50000
+    max_matching_tags: 50000
     delivery:
       mode: mirror
       require_digest_match: true
