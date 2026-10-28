@@ -1,0 +1,212 @@
+application:
+  subdomain: meelo
+  multi_instance: false
+  public_path:
+    - /
+  upstreams:
+    - location: /
+      backend: http://nginx:5000/
+  injects:
+    # 三阶段免密登录：捕获首次注册/登录的凭据并持久化，之后自动填充
+    - id: capture-credentials
+      on: request
+      auth_required: false
+      when:
+        - /api/users
+        - /api/signin
+        - /api/login
+      do: |
+        const payload = ctx.body.getJSON();
+        const user = payload && (payload.username || payload.name);
+        if (user && payload.password) {
+          ctx.flow.set("pending_user", String(user));
+          ctx.flow.set("pending_pass", String(payload.password));
+        }
+    - id: persist-credentials
+      on: response
+      auth_required: false
+      when:
+        - /api/users
+        - /api/signin
+        - /api/login
+      do: |
+        if (ctx.status >= 200 && ctx.status < 300) {
+          const user = ctx.flow.get("pending_user");
+          const pass = ctx.flow.get("pending_pass");
+          if (user && pass) {
+            ctx.persist.set("saved_user", user);
+            ctx.persist.set("saved_pass", pass);
+          }
+        }
+    - id: autofill-login
+      when:
+        - /
+      do:
+        - src: builtin://simple-inject-password
+          params:
+            user:
+              $persist: saved_user
+            password:
+              $persist: saved_pass
+    - id: open-save-chooser
+      on: browser
+      when:
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js
+
+services:
+  server:
+    # upstream: docker.io/arthichaud/meelo-server:v3.13.1
+    image: docker.1ms.run/arthichaud/meelo-server:v3.13.1
+    environment:
+      - TRANSCODER_URL=http://transcoder:7666
+      - MEILI_HOST=http://meilisearch:7700
+      - RABBITMQ_URL=amqp://meelo:{{ stable_secret "rabbitmq_password" }}@mq:5672
+      - DATABASE_URL=postgresql://meelo:{{ stable_secret "db_password" }}@db:5432/meelo?schema=public
+      - JWT_SIGNATURE={{ stable_secret "jwt_signature" }}
+      - API_KEYS={{ stable_secret "api_keys" }}
+      - INTERNAL_DATA_DIR=/lzcapp/var/data
+      - INTERNAL_CONFIG_DIR=/lzcapp/var/config
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- localhost:4000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    binds:
+      - /lzcapp/var/data:/lzcapp/var/data
+      - /lzcapp/var/config:/lzcapp/var/config
+    depends_on:
+      - db
+      - meilisearch
+      - mq
+
+  front:
+    # upstream: docker.io/arthichaud/meelo-front:v3.13.1
+    image: docker.1ms.run/arthichaud/meelo-front:v3.13.1
+    environment:
+      - SSR_SERVER_URL=http://server:4000
+      - SSR_SCANNER_URL=http://scanner:8133
+      - SSR_MATCHER_URL=http://matcher:6789
+    depends_on:
+      - server
+      - scanner
+
+  scanner:
+    # upstream: docker.io/arthichaud/meelo-scanner:v3.13.1
+    image: docker.1ms.run/arthichaud/meelo-scanner:v3.13.1
+    environment:
+      - API_URL=http://server:4000
+      - INTERNAL_CONFIG_DIR=/lzcapp/var/config
+      - INTERNAL_DATA_DIR=/lzcapp/var/data
+      - API_KEYS={{ stable_secret "api_keys" }}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- localhost:8133 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    binds:
+      - /lzcapp/var/data:/lzcapp/var/data:ro
+      - /lzcapp/var/config:/lzcapp/var/config:ro
+    depends_on:
+      - server
+
+  matcher:
+    # upstream: docker.io/arthichaud/meelo-matcher:v3.13.1
+    image: docker.1ms.run/arthichaud/meelo-matcher:v3.13.1
+    environment:
+      - API_URL=http://server:4000
+      - INTERNAL_CONFIG_DIR=/lzcapp/var/config
+      - API_KEYS={{ stable_secret "api_keys" }}
+      - RABBITMQ_URL=amqp://meelo:{{ stable_secret "rabbitmq_password" }}@mq:5672
+    binds:
+      - /lzcapp/var/config:/lzcapp/var/config:ro
+    depends_on:
+      - server
+      - mq
+
+  db:
+    # upstream: docker.io/library/postgres:17-alpine
+    image: docker.1ms.run/library/postgres:17-alpine
+    environment:
+      - POSTGRES_USER=meelo
+      - POSTGRES_PASSWORD={{ stable_secret "db_password" }}
+      - POSTGRES_DB=meelo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meelo -d meelo"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    binds:
+      - /lzcapp/var/db:/var/lib/postgresql/data
+
+  meilisearch:
+    # upstream: docker.io/getmeili/meilisearch:v1.5
+    image: docker.1ms.run/getmeili/meilisearch:v1.5
+    environment:
+      - MEILI_ENV=production
+      - MEILI_MASTER_KEY={{ stable_secret "meili_master_key" }}
+      - MEILI_LOG_LEVEL=WARN
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://0.0.0.0:7700/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    binds:
+      - /lzcapp/var/meili:/meili_data
+
+  transcoder:
+    # upstream: ghcr.io/zoriya/kyoo_transcoder:5.2.1
+    image: ghcr.1ms.run/zoriya/kyoo_transcoder:5.2.1
+    environment:
+      - GOCODER_SAFE_PATH=/lzcapp/var/data
+      - PGUSER=meelo
+      - PGPASSWORD={{ stable_secret "db_password" }}
+      - PGDATABASE=meelo
+      - PGHOST=db
+      - PGPORT=5432
+    binds:
+      - /lzcapp/var/data:/lzcapp/var/data:ro
+      - /lzcapp/var/transcoder-cache:/cache
+    depends_on:
+      - db
+
+  mq:
+    # upstream: docker.io/library/rabbitmq:4.3-alpine
+    image: docker.1ms.run/library/rabbitmq:4.3-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=meelo
+      - RABBITMQ_DEFAULT_PASS={{ stable_secret "rabbitmq_password" }}
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    binds:
+      - /lzcapp/var/rabbitmq:/var/lib/rabbitmq
+
+  nginx:
+    # upstream: docker.io/library/nginx:alpine
+    image: docker.1ms.run/library/nginx:alpine
+    setup_script: |
+      mkdir -p /etc/nginx/templates
+      cp /lzcapp/pkg/content/nginx.conf.template /etc/nginx/templates/meelo.conf.template
+    environment:
+      - PORT=5000
+      - FRONT_URL=http://front:3000
+      - SERVER_URL=http://server:4000
+      - SCANNER_URL=http://scanner:8133
+      - MATCHER_URL=http://matcher:6789
+    depends_on:
+      - server
+      - front
+
+usage: |
+  Meelo 是自托管音乐服务器，面向音乐收藏者，支持 MusicBrainz/Genius/Wikipedia 元数据自动补全、歌词、音乐视频分类等特性。
+  首次打开会弹出认证窗口，可直接注册管理员账号（免密登录会记住首次凭据，之后自动填充）。
+  音乐文件放入应用数据目录 data 下（通过文件管理器访问），然后在设置中添加库并扫描。

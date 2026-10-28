@@ -1,0 +1,18 @@
+package: community.lazycat.app.meelo
+version: 3.13.1
+name: Meelo
+description: Self-hosted music server focused on metadata integration and UI, for music collectors
+min_os_version: "1.5.0"
+homepage: https://github.com/Arthi-chaud/Meelo
+author: Arthi-chaud
+license: GPL-3.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: Meelo
+    description: 自托管音乐服务器，专注元数据整合与浏览体验，为音乐收藏者设计
+  en:
+    name: Meelo
+    description: Self-hosted music server focused on metadata integration and UI, for music collectors

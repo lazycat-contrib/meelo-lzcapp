@@ -1,0 +1,126 @@
+version: 1
+
+project:
+  root: .
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/application.lpk
+  target_arch: amd64
+
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: image
+    image: meelo-server
+
+build:
+  toolchains: []
+  run_buildscript: false
+
+images:
+  - id: meelo-server
+    target: service
+    service: server
+    source: docker.io/arthichaud/meelo-server
+    channel: stable
+    sort: semver
+    tag_regex: '^v\d+\.\d+\.\d+$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-front
+    target: service
+    service: front
+    source: docker.io/arthichaud/meelo-front
+    channel: stable
+    sort: semver
+    tag_regex: '^v\d+\.\d+\.\d+$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-scanner
+    target: service
+    service: scanner
+    source: docker.io/arthichaud/meelo-scanner
+    channel: stable
+    sort: semver
+    tag_regex: '^v\d+\.\d+\.\d+$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-matcher
+    target: service
+    service: matcher
+    source: docker.io/arthichaud/meelo-matcher
+    channel: stable
+    sort: semver
+    tag_regex: '^v\d+\.\d+\.\d+$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-db
+    target: service
+    service: db
+    source: docker.io/library/postgres
+    channel: custom
+    tag_regex: '^17-alpine$'
+    sort: created
+    version_regex: '^(?P<major>17)-alpine$'
+    version_template: '0.0.{major}'
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-meili
+    target: service
+    service: meilisearch
+    source: docker.io/getmeili/meilisearch
+    channel: stable
+    sort: semver
+    tag_regex: '^v1\.5(\.\d+)?$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-transcoder
+    target: service
+    service: transcoder
+    source: ghcr.io/zoriya/kyoo_transcoder
+    channel: stable
+    sort: semver
+    tag_regex: '^5\.2(\.\d+)?$'
+    max_tags: 50000
+    max_matching_tags: 50000
+    delivery:
+      mode: mirror
+      require_digest_match: true
+  - id: meelo-mq
+    target: service
+    service: mq
+    source: docker.io/library/rabbitmq
+    channel: custom
+    tag_regex: '^4\.3-alpine$'
+    sort: created
+    version_regex: '^(?P<minor>4)\.(?P<patch>3)-alpine$'
+    version_template: '0.{minor}.{patch}'
+    delivery:
+      mode: mirror
+      require_digest_match: true
+
+stores:
+  official:
+    enabled: false
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: Meelo
+    summary: 自托管音乐服务器，专注元数据整合与浏览体验
