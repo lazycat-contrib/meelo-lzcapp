@@ -1,5 +1,5 @@
 package: community.lazycat.app.meelo
-version: 3.13.1
+version: 3.13.2
 name: Meelo
 description: Self-hosted music server focused on metadata integration and UI, for music collectors
 min_os_version: "1.5.0"

@@ -56,8 +56,8 @@ application:
         - src: file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js
 services:
   server:
-    # upstream: docker.io/arthichaud/meelo-server:v3.13.1
-    image: docker.1ms.run/arthichaud/meelo-server:v3.13.1
+    # upstream: docker.io/arthichaud/meelo-server:v3.13.2
+    image: docker.1ms.run/arthichaud/meelo-server:v3.13.2
     environment:
       - TRANSCODER_URL=http://transcoder:7666
       - MEILI_HOST=http://meilisearch:7700
@@ -81,8 +81,8 @@ services:
       - meilisearch
       - mq
   front:
-    # upstream: docker.io/arthichaud/meelo-front:v3.13.1
-    image: docker.1ms.run/arthichaud/meelo-front:v3.13.1
+    # upstream: docker.io/arthichaud/meelo-front:v3.13.2
+    image: docker.1ms.run/arthichaud/meelo-front:v3.13.2
     environment:
       - SSR_SERVER_URL=http://server:4000
       - SSR_SCANNER_URL=http://scanner:8133
@@ -91,8 +91,8 @@ services:
       - server
       - scanner
   scanner:
-    # upstream: docker.io/arthichaud/meelo-scanner:v3.13.1
-    image: docker.1ms.run/arthichaud/meelo-scanner:v3.13.1
+    # upstream: docker.io/arthichaud/meelo-scanner:v3.13.2
+    image: docker.1ms.run/arthichaud/meelo-scanner:v3.13.2
     environment:
       - API_URL=http://server:4000
       - INTERNAL_CONFIG_DIR=/lzcapp/var/config
@@ -110,8 +110,8 @@ services:
     depends_on:
       - server
   matcher:
-    # upstream: docker.io/arthichaud/meelo-matcher:v3.13.1
-    image: docker.1ms.run/arthichaud/meelo-matcher:v3.13.1
+    # upstream: docker.io/arthichaud/meelo-matcher:v3.13.2
+    image: docker.1ms.run/arthichaud/meelo-matcher:v3.13.2
     environment:
       - API_URL=http://server:4000
       - INTERNAL_CONFIG_DIR=/lzcapp/var/config
