@@ -182,8 +182,8 @@ services:
     binds:
       - /lzcapp/var/rabbitmq:/var/lib/rabbitmq
   nginx:
-    # upstream: docker.io/library/nginx:1.31.9-alpine
-    image: docker.1ms.run/library/nginx:1.31.9-alpine
+    # upstream: docker.io/library/nginx:1.31.10-alpine
+    image: docker.1ms.run/library/nginx:1.31.10-alpine
     setup_script: |
       mkdir -p /etc/nginx/templates
       cp /lzcapp/pkg/content/nginx.conf.template /etc/nginx/templates/meelo.conf.template
